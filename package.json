@@ -1,0 +1,14 @@
+{
+  "name": "chromatix-test2",
+  "version": "1.0.0",
+  "description": "Node Data Processing Test (Medium Length)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "author": "JC Phua",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parser": "^2.3.2"
+  }
+}
