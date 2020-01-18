@@ -49,16 +49,18 @@ fs.createReadStream(csv_path)
         console.timeEnd('readstream');
         console.log(`${ csv_data.length } records processed.\n`);
 
-        _regions = _fns_tasks.gen_revenueCostProfit_region(csv_data, _regions);
+        _regions = _fns_tasks.gen_region_revenueCostProfit(csv_data, _regions);
+        _data['Regions'] = _regions;
+        _data = _fns_tasks.get_region_revenueCostProfit_itemTypes(csv_data, _regions);
 
         console.time('\nwrite file');
-        fs.writeFileSync(path.join(__dirname, '../output/_data.json'), JSON.stringify(_regions));
+        fs.writeFileSync(path.join(__dirname, '../output/_data.json'), JSON.stringify(_data));
         console.timeEnd('\nwrite file');
     });
 
 const _fns_tasks = {
-    gen_revenueCostProfit_region: (_data, _regions) => {
-        console.time('\nAll regions');
+    gen_region_revenueCostProfit: (_data, _regions) => {
+        console.time('\nAll region Totals');
         for (let region in _regions) {
         // for (let i=0; i<Object.keys(_regions).length; i++) {
         //     let region = _regions[i] || Object.keys(_regions)[i];
@@ -76,6 +78,7 @@ const _fns_tasks = {
                             'Cost': 0,
                             'Profit': 0
                         },
+                        'ItemTypes': {},
                         _indexes: []
                     };
                 }
@@ -92,13 +95,68 @@ const _fns_tasks = {
 
             console.timeEnd(`Region: ${region}`);
         }
-        console.timeEnd('\nAll regions');
+        console.timeEnd('\nAll region Totals');
         return _regions;
     },
-    gen_priorityOrders_date: () => {
+    get_region_revenueCostProfit_itemTypes: (_data, _regions) => {
+        console.time('\nAll region ItemTypes');
+        let _item_types = {};
+        for (let region in _regions) {
+        // for (let i=0; i<Object.keys(_regions).length; i++) {
+        //     let region = _regions[i] || Object.keys(_regions)[i];
+            console.time(`Region: ${region}`);
+            let _region = _regions[region];
+            for (let country in _region.countries) {
+                let _country = _region.countries[country];
+
+                for (let idx = 0; idx < _country._indexes.length; idx++) {
+                    let row_index = _country._indexes[idx],
+                        _row = _data[row_index],
+                        item_type = _row['Item Type'];
+
+                    if (!_country['ItemTypes'][item_type]) { 
+                        _country['ItemTypes'][item_type] = {
+                            'Total': {
+                                'Revenue': 0,
+                                'Cost': 0,
+                                'Profit': 0
+                            },
+                            _indexes: []
+                        }
+                    }
+                    _country['ItemTypes'][item_type]._indexes.push(row_index);
+                    
+                    _country['ItemTypes'][item_type]['Total']['Revenue'] += parseFloat(_row['Total Revenue']);
+                    _country['ItemTypes'][item_type]['Total']['Cost'] += parseFloat(_row['Total Cost']);
+                    _country['ItemTypes'][item_type]['Total']['Profit'] += parseFloat(_row['Total Profit']);
+
+                    if (!_item_types[item_type]) {
+                        _item_types[item_type] = {
+                            'Revenue': 0,
+                            'Cost': 0,
+                            'Profit': 0,
+                            _indexes: []
+                        }
+                    }
+                    _item_types[item_type]._indexes.push(row_index);
+                    _item_types[item_type]['Revenue'] += parseFloat(_row['Total Revenue']);
+                    _item_types[item_type]['Cost'] += parseFloat(_row['Total Cost']);
+                    _item_types[item_type]['Profit'] += parseFloat(_row['Total Profit']);
+                }
+            }
+
+            console.timeEnd(`Region: ${region}`);
+        }
+        console.timeEnd('\nAll region ItemTypes');
+        return {
+            'Regions': _regions,
+            'Item Types': _item_types
+        };
+    },
+    gen_date_priorityOrders: () => {
 
     },
-    gen_avgDaysToShip_date: () => {
+    gen_date_avgDaysToShip: () => {
 
     }
 };
