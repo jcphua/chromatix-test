@@ -37,17 +37,31 @@ fs.createReadStream(csv_path)
         // Init 'caching' index of data row for order date properties
         const order_date = row['Order Date'];
         if (!_re_dateComp.test(order_date)) { console.log(row_ctr, row); }
-        const _mt_dateComp = _re_dateComp.exec(order_date),
-              order_year = _mt_dateComp[3],
-              order_yearMonth_string = `${ _mt_dateComp[3] }-${ _mt_dateComp[1].padStart(2, '0') }`;
+        const _mtch_orderDate = _re_dateComp.exec(order_date),
+              order_year = _mtch_orderDate[3],
+              order_yearMonth_string = `${ _mtch_orderDate[3] }-${ _mtch_orderDate[1].padStart(2, '0') }`;
         if (!_dates['Year'][order_year]) { _dates['Year'][order_year] = { _indexes: [] }; }
         _dates['Year'][order_year]._indexes.push(row_ctr);
 
-        if (!_dates['YearMonth'][order_yearMonth_string]) { _dates['YearMonth'][order_yearMonth_string] = { _indexes: [] }; }
+        if (!_dates['YearMonth'][order_yearMonth_string]) { 
+            _dates['YearMonth'][order_yearMonth_string] = { 
+                _indexes: [], 
+                "days_OrderedShippedDiff": [] 
+            }; 
+        }
         _dates['YearMonth'][order_yearMonth_string]._indexes.push(row_ctr);
 
-        // if (row_ctr < 50) {
-        // }
+        // Init 
+        const ship_date = row['Ship Date'],
+              _mtch_shipDate = _re_dateComp.exec(ship_date),
+              _dt_orderDate = new Date(`${ order_yearMonth_string }-${ _mtch_orderDate[2].padStart(2, '0') }`),
+              _dt_shipDate = new Date(`${ _mtch_shipDate[3] }-${ _mtch_shipDate[1].padStart(2, '0') }-${ _mtch_shipDate[2].padStart(2, '0') }`),
+              order_ship_diff = (_dt_shipDate.getTime() - _dt_orderDate.getTime()) / 86400000;
+        _dates['YearMonth'][order_yearMonth_string]['days_OrderedShippedDiff'].push(order_ship_diff);
+
+        if (row_ctr < 50) {
+            console.log(row_ctr, _dt_orderDate, _dt_shipDate, order_ship_diff);
+        }
 
         row_ctr++;
     })
