@@ -8,11 +8,14 @@ const csv_filenames = ['test500', 'test4000', 'node-data-processing-medium-data'
       csv_path = path.join(__dirname, `../data/${ csv_filename }.csv`);
 
 const __indexes = { _indexes: [] },
-      __totals = { Total: { Revenue: 0, Cost: 0, Profit: 0 } };
+      __totals = { Total: { Revenue: 0, Cost: 0, Profit: 0 } },
+      __dates = { 'Year': {}, 'YearMonth': {} },
+      _re_dateComp = /^(\d{1,2})\/(\d{2})\/(\d{4})$/;
 
-let csv_data = [],
+let src_data = [],
     _data = {},
     _regions = {},
+    _dates = { ...__dates },
     region_names = [],
     row_ctr = 0;
 
@@ -27,17 +30,29 @@ fs.createReadStream(csv_path)
     })
     .pipe(csvParser())
     .on('data', (row) => {
-        // console.log(row);
-        csv_data.push(row);
+        src_data.push(row);
 
         const region = row['Region'];
         if (!_regions[region]) { 
-            _regions[region] = { ...__totals, countries: {}, _indexes: [] }; 
+            _regions[region] = { ...__totals, Countries: {}, _indexes: [] }; 
         }
         _regions[region]._indexes.push(row_ctr);
 
         if (!region_names.includes(region)) { region_names.push(region); }
-        // if (!_data[region]) { _data[region] }
+        
+        const order_date = row['Order Date'],
+              _mt_dateComp = _re_dateComp.exec(order_date),
+              order_year = _mt_dateComp[3],
+              order_yearMonth = `${ _mt_dateComp[3] }-${ _mt_dateComp[1].padStart(2, '0') }`;
+        if (!_dates['Year'][order_year]) { _dates['Year'][order_year] = { _indexes: [] }; }
+        _dates['Year'][order_year]._indexes.push(row_ctr);
+
+        if (!_dates['YearMonth'][order_yearMonth]) { _dates['YearMonth'][order_yearMonth] = { _indexes: [] }; }
+        _dates['YearMonth'][order_yearMonth]._indexes.push(row_ctr);
+
+        // if (row_ctr < 50) {
+        //         console.log(order_date, _mt_dateComp, order_yearMonth);
+        // }
 
         row_ctr++;
     })
@@ -45,22 +60,45 @@ fs.createReadStream(csv_path)
 
         // console.log(_region_names.sort());
         // console.log(_regions);
+        // console.log(_dates);
 
         console.timeEnd('readstream');
-        console.log(`${ csv_data.length } records processed.\n`);
+        console.log(`${ src_data.length } records processed.\n`);
 
-        _regions = _fns_tasks.gen_region_revenueCostProfit(csv_data, _regions);
-        _data['Regions'] = _regions;
-        _data = _fns_tasks.get_region_revenueCostProfit_itemTypes(csv_data, _regions);
+        _fns_process.task1_region(src_data, _regions);
 
-        console.time('\nwrite file');
-        fs.writeFileSync(path.join(__dirname, '../output/_data.json'), JSON.stringify(_data));
-        console.timeEnd('\nwrite file');
+        _fns_process.task2_orderPriorities(src_data, _dates);
     });
 
-const _fns_tasks = {
-    gen_region_revenueCostProfit: (_data, _regions) => {
-        console.time('\nAll region Totals');
+const _fns_process = {
+    _writeData: (_data, dest_filename) => {
+        const output_filepath = path.join(__dirname, `../output/${ dest_filename }.json`);
+        console.time(`Write file`);
+        console.log(`\nWriting '${ dest_filename }' to:\n'${ output_filepath }`);
+        fs.writeFileSync(output_filepath, JSON.stringify(_data));
+        console.timeEnd(`Write file`);
+    },
+    task1_region: (src_data, _regions) => {
+        let _data = {};
+        _regions = _fns_genData.region_revenueCostProfit(src_data, _regions);
+        _data['Regions'] = _regions;
+        _data = _fns_genData.region_revenueCostProfit_itemTypes(src_data, _regions);
+
+        _fns_process._writeData(_data, 'task1_region');
+    },
+    task2_orderPriorities: (src_data, _dates) => {
+        let _data = {};
+        _data = _fns_genData.date_orderPriorities(src_data, _dates);
+        _fns_process._writeData(_data, 'task2_orderPriorities');
+    },
+    task3_avgTimeToShip: (_data, dest_filename) => {
+        _fns_process._writeData(_data, 'task3_');
+    }
+};
+
+const _fns_genData = {
+    region_revenueCostProfit: (_data, _regions) => {
+        console.time('All region Totals');
         for (let region in _regions) {
         // for (let i=0; i<Object.keys(_regions).length; i++) {
         //     let region = _regions[i] || Object.keys(_regions)[i];
@@ -71,8 +109,8 @@ const _fns_tasks = {
                     _row = _data[row_index],
                     country_name = _row['Country'];
 
-                if (!_region.countries[country_name]) { 
-                    _region.countries[country_name] = { 
+                if (!_region['Countries'][country_name]) { 
+                    _region['Countries'][country_name] = { 
                         'Total': {
                             'Revenue': 0,
                             'Cost': 0,
@@ -82,11 +120,11 @@ const _fns_tasks = {
                         _indexes: []
                     };
                 }
-                _region.countries[country_name]._indexes.push(row_index);
+                _region['Countries'][country_name]._indexes.push(row_index);
                 
-                _region.countries[country_name]['Total']['Revenue'] += parseFloat(_row['Total Revenue']);
-                _region.countries[country_name]['Total']['Cost'] += parseFloat(_row['Total Cost']);
-                _region.countries[country_name]['Total']['Profit'] += parseFloat(_row['Total Profit']);
+                _region['Countries'][country_name]['Total']['Revenue'] += parseFloat(_row['Total Revenue']);
+                _region['Countries'][country_name]['Total']['Cost'] += parseFloat(_row['Total Cost']);
+                _region['Countries'][country_name]['Total']['Profit'] += parseFloat(_row['Total Profit']);
 
                 _region['Total']['Revenue'] += parseFloat(_row['Total Revenue']);
                 _region['Total']['Cost'] += parseFloat(_row['Total Cost']);
@@ -95,19 +133,19 @@ const _fns_tasks = {
 
             console.timeEnd(`Region: ${region}`);
         }
-        console.timeEnd('\nAll region Totals');
+        console.timeEnd('All region Totals');
         return _regions;
     },
-    get_region_revenueCostProfit_itemTypes: (_data, _regions) => {
-        console.time('\nAll region ItemTypes');
+    region_revenueCostProfit_itemTypes: (_data, _regions) => {
+        console.time('All region ItemTypes');
         let _item_types = {};
         for (let region in _regions) {
         // for (let i=0; i<Object.keys(_regions).length; i++) {
         //     let region = _regions[i] || Object.keys(_regions)[i];
             console.time(`Region: ${region}`);
             let _region = _regions[region];
-            for (let country in _region.countries) {
-                let _country = _region.countries[country];
+            for (let country in _region['Countries']) {
+                let _country = _region['Countries'][country];
 
                 for (let idx = 0; idx < _country._indexes.length; idx++) {
                     let row_index = _country._indexes[idx],
@@ -147,16 +185,39 @@ const _fns_tasks = {
 
             console.timeEnd(`Region: ${region}`);
         }
-        console.timeEnd('\nAll region ItemTypes');
+        console.timeEnd('All region ItemTypes');
         return {
             'Regions': _regions,
             'Item Types': _item_types
         };
     },
-    gen_date_priorityOrders: () => {
+    date_orderPriorities: (_data, _dates) => {
+        console.time('\nOrder priorities');
+        const _years = Object.keys(_dates['Year']).sort();
+        for (let idx in _years) {
+            const year = _years[idx];
+            console.time(`Year ${year}`);
+            let month = 0;
+            do {
+                month++;
+                const yearMonth = `${ year }-${ month.toString().padStart(2, '0') }`;
+                if (!_dates['YearMonth'][yearMonth]) { continue; }
+                for (let idx = 0; idx < _dates['YearMonth'][yearMonth]._indexes.length; idx++) {
+                    const row = _data[_dates['YearMonth'][yearMonth]._indexes[idx]],
+                          order_priority = row['Order Priority'];
+                    
+                    if (!_dates['Year'][year.toString()][month.toString()]) { _dates['Year'][year.toString()][month.toString()] = {}; }
+                    if (!_dates['Year'][year.toString()][month.toString()][order_priority]) { _dates['Year'][year.toString()][month.toString()][order_priority] = 0; }
+                    _dates['Year'][year.toString()][month.toString()][order_priority] += 1;
+                }
+            } while (month < 12);
 
+            console.timeEnd(`Year ${year}`);
+        }
+        console.timeEnd('\nOrder priorities');
+        return _dates['Year'];
     },
-    gen_date_avgDaysToShip: () => {
+    date_avgDaysToShip: () => {
 
     }
 };
