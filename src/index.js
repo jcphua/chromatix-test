@@ -37,9 +37,8 @@ fs.createReadStream(csv_path)
         _regions[region]._indexes.push(row_ctr);
 
         // Init 'caching' index of data row for order date properties
-        const order_date = row['Order Date'];
-        if (!_re_dateComp.test(order_date)) { console.log(row_ctr, row); }
-        const _mtch_orderDate = _re_dateComp.exec(order_date),
+        const order_date = row['Order Date'],
+              _mtch_orderDate = _re_dateComp.exec(order_date),
               order_year = _mtch_orderDate[3],
               order_yearMonth_string = `${ _mtch_orderDate[3] }-${ _mtch_orderDate[1].padStart(2, '0') }`;
         if (!_dates['Year'][order_year]) { _dates['Year'][order_year] = { _indexes: [] }; }
@@ -326,15 +325,46 @@ const _fns_genData = {
                           country = row['Country'];
                     
                     if (!_data[year][month_string]['Regions']) { _data[year][month_string]['Regions'] = {}; }
-                    if (!_data[year][month_string]['Regions'][region]) { _data[year][month_string]['Regions'][region] = { ...__avgShipOrders, 'Countries': {}, _indexes: [] }; }
+                    if (!_data[year][month_string]['Regions'][region]) { _data[year][month_string]['Regions'][region] = { ...__avgShipOrders, 'Countries': {}, _indexes: [], '_days_OrderedShippedDiff': [] }; }
                     if (!_data[year][month_string]['Regions'][region]['Countries']) { _data[year][month_string]['Regions'][region]['Countries'] = {}; }
-                    if (!_data[year][month_string]['Regions'][region]['Countries'][country]) { _data[year][month_string]['Regions'][region]['Countries'][country] = { ...__avgShipOrders, _indexes: [] }; }
+                    if (!_data[year][month_string]['Regions'][region]['Countries'][country]) { _data[year][month_string]['Regions'][region]['Countries'][country] = { ...__avgShipOrders, _indexes: [], '_days_OrderedShippedDiff': [] }; }
 
                     _data[year][month_string]['Regions'][region]._indexes.push(row_index);
                     _data[year][month_string]['Regions'][region]['Countries'][country]._indexes.push(row_index);
                     
                     _data[year][month_string]['Regions'][region]['NumberOfOrders'] += 1;
                     _data[year][month_string]['Regions'][region]['Countries'][country]['NumberOfOrders'] += 1;
+
+                    const order_date = row['Order Date'],
+                    ship_date = row['Ship Date'],
+                    _mtch_orderDate = _re_dateComp.exec(order_date),
+                    _mtch_shipDate = _re_dateComp.exec(ship_date),
+                    _dt_orderDate = new Date(`${ yearMonth_string }-${ _mtch_orderDate[2].padStart(2, '0') }`),
+                    _dt_shipDate = new Date(`${ _mtch_shipDate[3] }-${ _mtch_shipDate[1].padStart(2, '0') }-${ _mtch_shipDate[2].padStart(2, '0') }`),
+                    order_ship_diff = (_dt_shipDate.getTime() - _dt_orderDate.getTime()) / 86400000;
+
+                    _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = order_ship_diff;
+                    _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = order_ship_diff;
+                    
+                    _data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff'].push(order_ship_diff);
+                    _data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff'].push(order_ship_diff);
+                    if (_data[year][month_string]['Regions'][region]['Countries'][country]._indexes.length > 1) {
+                        _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff']);
+                    }
+                    if (idx === _dates['YearMonth'][yearMonth_string]._indexes.length - 1) {
+                        if (_data[year][month_string]['Regions'][region]['Countries'][country]._indexes.length > 1) {
+                            _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff']);
+                        }
+                        else {
+                            _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = order_ship_diff;
+                        }
+                        if (_data[year][month_string]['Regions'][region]._indexes.length > 1) {
+                            _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff']);
+                        }
+                        else {
+                            _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = order_ship_diff;
+                        }
+                    }
 
                 }
             } while (month < 12);
