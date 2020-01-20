@@ -19,6 +19,7 @@ let csv_data = [],
 
 console.log('***********************************\n**** NODE DATA PROCESSING TEST ****\n***********************************');
 
+console.time('Complete all processing');
 console.log(`Reading data source:\n'${ csv_path }'`);
 console.time('Read CSV');
 fs.createReadStream(csv_path)
@@ -77,7 +78,7 @@ fs.createReadStream(csv_path)
         _fns_process.task2_orderPriorities(csv_data, _dates);
         _fns_process.task3_avgTimeToShip(csv_data, _dates, _regions);
 
-        console.time('\nNode Data Processing Test');
+        console.timeEnd('Complete all processing');
     });
 
 const _fns_process = {
@@ -148,8 +149,6 @@ const _fns_genData = {
         console.time('a) Region Totals');
 
         for (let region in _regions) {
-        // for (let i=0; i<Object.keys(_regions).length; i++) {
-        //     let region = _regions[i] || Object.keys(_regions)[i];
             // console.time(`Region: ${region}`);
             let _region = _regions[region];
             for (let idx = 0; idx < _region._indexes.length; idx++) {
@@ -163,9 +162,9 @@ const _fns_genData = {
                             'Revenue': 0,
                             'Cost': 0,
                             'Profit': 0
-                        }, // ...__totals,
+                        },
                         'ItemTypes': {},
-                        _indexes: [] // ...__indexes
+                        _indexes: []
                     };
                 }
                 _region['Countries'][country_name]._indexes.push(row_index);
@@ -190,8 +189,6 @@ const _fns_genData = {
         let _data = {},
             _item_types = {};
         for (let region in _regions) {
-        // for (let i=0; i<Object.keys(_regions).length; i++) {
-        //     let region = _regions[i] || Object.keys(_regions)[i];
             // console.time(`Region: ${region}`);
             let _region = _regions[region];
             for (let country in _region['Countries']) {
@@ -208,8 +205,8 @@ const _fns_genData = {
                                 'Revenue': 0,
                                 'Cost': 0,
                                 'Profit': 0
-                            }, // ...__totals,
-                            _indexes: [] // ...__indexes
+                            },
+                            _indexes: []
                         }
                     }
                     _country['ItemTypes'][item_type]._indexes.push(row_index);
@@ -222,8 +219,8 @@ const _fns_genData = {
                         _item_types[item_type] = {
                             'Revenue': 0,
                             'Cost': 0,
-                            'Profit': 0, // ...__totals[Total]
-                            _indexes: [] // ...__indexes
+                            'Profit': 0,
+                            _indexes: []
                         }
                     }
                     _item_types[item_type]._indexes.push(row_index);
