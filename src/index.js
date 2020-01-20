@@ -234,7 +234,7 @@ const _fns_genData = {
         }
         _data = {
             'Regions': _regions,
-            'Item Types': _item_types
+            'ItemTypes': _item_types
         };
         console.timeEnd('b) Region ItemTypes');
         return _data;
