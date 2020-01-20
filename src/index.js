@@ -346,6 +346,9 @@ const _fns_genData = {
 
                     _data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff'].push(order_ship_diff);
                     _data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff'].push(order_ship_diff);
+                    if (_data[year][month_string]['Regions'][region]._indexes.length > 1) {
+                        _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff']);
+                    }
                     if (_data[year][month_string]['Regions'][region]['Countries'][country]._indexes.length > 1) {
                         _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff']);
                     }
@@ -356,14 +359,7 @@ const _fns_genData = {
                         else {
                             _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = order_ship_diff;
                         }
-                        if (_data[year][month_string]['Regions'][region]._indexes.length > 1) {
-                            _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = _fns_genData._arr_avg(_data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff']);
-                        }
-                        else {
-                            _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = order_ship_diff;
-                        }
                     }
-
                 }
             } while (month < 12);
 
