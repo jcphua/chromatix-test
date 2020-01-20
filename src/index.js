@@ -3,7 +3,7 @@ const fs = require('fs'),
       csvParser = require('csv-parser');
 
 const csv_filenames = ['test500', 'test4000', 'node-data-processing-medium-data'],
-      csv_filename = csv_filenames[0],
+      csv_filename = csv_filenames[2],
       csv_path = path.join(__dirname, `../data/${ csv_filename }.csv`);
 
 const __indexes = { _indexes: [] },
@@ -17,9 +17,9 @@ let csv_data = [],
     _dates = { ...__dates },
     row_ctr = 0;
 
-console.log(`Data source:\n'${ csv_path }'`);
+console.log('***********************************\n**** NODE DATA PROCESSING TEST ****\n***********************************');
 
-console.time('Node Data Processing Test');
+console.log(`Reading data source:\n'${ csv_path }'`);
 console.time('Read CSV');
 fs.createReadStream(csv_path)
     .on('error', () => {
@@ -52,7 +52,7 @@ fs.createReadStream(csv_path)
         }
         _dates['YearMonth'][order_yearMonth_string]._indexes.push(row_ctr);
 
-        // Init 
+        // Init average order/ship date difference calculations
         const ship_date = row['Ship Date'],
               _mtch_shipDate = _re_dateComp.exec(ship_date),
               _dt_orderDate = new Date(`${ order_yearMonth_string }-${ _mtch_orderDate[2].padStart(2, '0') }`),
@@ -68,8 +68,7 @@ fs.createReadStream(csv_path)
     })
     .on('end', () => {
 
-        // console.log(_regions);
-        // console.log(_dates);
+        _fns_process.emptyDir_output();
 
         console.log(`${ csv_data.length } records processed.\n`);
         console.timeEnd('Read CSV');
@@ -82,69 +81,76 @@ fs.createReadStream(csv_path)
     });
 
 const _fns_process = {
+    _emptyDir: (dest_path) => {
+        if (!fs.existsSync(dest_path)) { return; }
+        fs.readdirSync(dest_path).forEach((file, idx) => {
+            let filepath = path.join(dest_path, file);
+            fs.unlinkSync(filepath);
+        });
+    },
     _writeData: (_data, dest_filename) => {
         console.time(`Write file`);
         const output_filepath = path.join(__dirname, `../output/${ dest_filename }.json`);
-        // if (fs.existsSync(output_filepath)) {
-        //     fs.unlinkSync(output_filepath);
-        // }
-        console.log(`\nWriting '${ dest_filename }' to:\n'${ output_filepath }`);
+        console.log(`\nWriting '${ dest_filename }' data to:\n'${ output_filepath }`);
         fs.writeFileSync(output_filepath, JSON.stringify(_data));
         console.timeEnd(`Write file`);
     },
+    emptyDir_output: () => {
+        const output_path = path.join(__dirname, `../output`);
+        _fns_process._emptyDir(output_path);
+    },
     task1_region: (_src_data, _regions) => {
         console.log('\n---------------');
-        console.time(`Task 1: Regions`);
+        console.log('\n** [TASK 1] Generating Region and Country costing data **');
+        console.time(`Complete (Regions)`);
         let _data = {};
 
-        // _fns_process._writeData(_dates, '_dates1');
+        // _fns_process._writeData(_dates, '_RAW_task1_dates');
 
         _regions = _fns_genData.region_revenueCostProfit(_src_data, _regions);
         _data['Regions'] = _regions;
         _data = _fns_genData.region_revenueCostProfit_itemTypes(_src_data, _regions);
 
+        console.timeEnd(`Complete (Regions)`);
         _fns_process._writeData(_data, 'task1_region');
-        console.timeEnd(`Task 1: Regions`);
     },
     task2_orderPriorities: (_src_data, _dates) => {
         console.log('\n---------------');        
-        console.time(`Task 2: Order priorities`);
+        console.log('\n** [TASK 2] Generating Order Priority data **');
+        console.time(`Complete (Order priorities)`);
         let _data = {};
 
-        // _fns_process._writeData(_dates, '_dates2');
+        // _fns_process._writeData(_dates, '_RAW_task2_dates');
 
-        _data = _fns_genData.date_orderPriorities(_src_data, Object.assign({}, _data, _dates));
-        _fns_process._writeData(_data['Year'], 'task2_orderPriorities');
-        console.timeEnd(`Task 2: Order priorities`);
+        _data = _fns_genData.date_orderPriorities(_src_data, _dates);
+        console.timeEnd(`Complete (Order priorities)`);
+        _fns_process._writeData(_data, 'task2_orderPriorities');
     },
     task3_avgTimeToShip: (_src_data, _dates, _regions) => {
         console.log('\n---------------');        
-        console.time(`Task 3: Average time to ship`);
+        console.log('\n** [TASK 3] Generating Average Days To Ship data **');
+        console.time(`Complete (Average time to ship)`);
         let _data = {}, data2 = {};
 
-        _fns_process._writeData(_dates, '_dates3');
+        // _fns_process._writeData(_dates, '_RAW_task3_dates');
 
         _data = _fns_genData.date_avgDaysToShip(_src_data, _dates, _regions);
-        _fns_process._writeData(_data, '_data3a');
+        // _fns_process._writeData(_data, '_RAW_task3_data');
         _data2 = _fns_genData.date_avgDaysToShip_Region(_src_data, _dates, _regions, _data);
-        _fns_process._writeData(_data2, '_data3b');
-        // let _data3 = Object.assign({}, _data, _data2);
-        // _fns_process._writeData(_data3, '_data3c');
-        _fns_process._writeData(_data, 'task3_avgDaysToShip');
-        console.timeEnd(`Task 3: Average time to ship`);
+        console.timeEnd(`Complete (Average time to ship)`);
+        _fns_process._writeData(_data2, 'task3_avgDaysToShip');
     }
 };
 
 const _fns_genData = {
     _arr_avg: (arr) => arr.reduce((a, b) => a + b) / arr.length,
     region_revenueCostProfit: (_src_data, _regions) => {
-        console.log('\n** Generating Region and Country costing data **');
-        console.time('All region Totals');
+        console.time('a) Region Totals');
 
         for (let region in _regions) {
         // for (let i=0; i<Object.keys(_regions).length; i++) {
         //     let region = _regions[i] || Object.keys(_regions)[i];
-            console.time(`Region: ${region}`);
+            // console.time(`Region: ${region}`);
             let _region = _regions[region];
             for (let idx = 0; idx < _region._indexes.length; idx++) {
                 let row_index = _region._indexes[idx],
@@ -173,21 +179,20 @@ const _fns_genData = {
                 _region['Total']['Profit'] += parseFloat(_row['Total Profit']);
             }
 
-            console.timeEnd(`Region: ${region}`);
+            // console.timeEnd(`Region: ${region}`);
         }
-        console.timeEnd('All region Totals');
+        console.timeEnd('a) Region Totals');
         return _regions;
     },
     region_revenueCostProfit_itemTypes: (_src_data, _regions) => {
-        console.log('\n** Generating Region, Country and ItemType data **');
-        console.time('All region ItemTypes');
+        console.time('b) Region ItemTypes');
 
         let _data = {},
             _item_types = {};
         for (let region in _regions) {
         // for (let i=0; i<Object.keys(_regions).length; i++) {
         //     let region = _regions[i] || Object.keys(_regions)[i];
-            console.time(`Region: ${region}`);
+            // console.time(`Region: ${region}`);
             let _region = _regions[region];
             for (let country in _region['Countries']) {
                 let _country = _region['Countries'][country];
@@ -228,24 +233,23 @@ const _fns_genData = {
                 }
             }
 
-            console.timeEnd(`Region: ${region}`);
+            // console.timeEnd(`Region: ${region}`);
         }
         _data = {
             'Regions': _regions,
             'Item Types': _item_types
         };
-        console.timeEnd('All region ItemTypes');
+        console.timeEnd('b) Region ItemTypes');
         return _data;
     },
     date_orderPriorities: (_src_data, _dates) => {
-        console.log('\n** Generating Order Priority data **');
-        console.time('\nOrder priorities');
+        console.time('Order priorities');
         
         const _years = Object.keys(_dates['Year']).sort();
         let _data = {};
         for (let yr in _years) {
             const year = _years[yr];
-            console.time(`Year ${year}`);
+            // console.time(`Year ${year}`);
             _data[year] = {};
             let month = 0;
             do {
@@ -263,21 +267,19 @@ const _fns_genData = {
                 }
             } while (month < 12);
 
-            console.timeEnd(`Year ${year}`);
+            // console.timeEnd(`Year ${year}`);
         }
-        console.timeEnd('\nOrder priorities');
-        // console.log(JSON.stringify(_dates));
+        console.timeEnd('Order priorities');
         return _data;
     },
     date_avgDaysToShip: (_src_data, _dates, _regions) => {
-        console.log('\n** Generating Average Days To Ship data **');
-        console.time('\nAverage Days To Ship');
+        console.time('a) Average Days To Ship');
 
         const _years = Object.keys(_dates['Year']).sort();
         let _data = {};
         for (let yr in _years) {
             const year = _years[yr];
-            console.time(`Year ${year}`);
+            // console.time(`Year ${year}`);
             if (!_data[year]) { _data[year] = {}; }
             let month = 0;
             do {
@@ -296,20 +298,19 @@ const _fns_genData = {
                 }
             } while (month < 12);
 
-            console.timeEnd(`Year ${year}`);
+            // console.timeEnd(`Year ${year}`);
         }
-        console.timeEnd('\nAverage Days To Ship');
+        console.timeEnd('a) Average Days To Ship');
         return _data;
     },
     date_avgDaysToShip_Region: (_src_data, _dates, _regions, _data) => {
-        console.log('\n** Generating Average Days To Ship Region data **');
-        console.time('\nAverage Days To Ship Regions');
+        console.time('b) Average Days To Ship - Regions');
         
         const _years = Object.keys(_dates['Year']).sort();
         // let _data = {};
         for (let yr in _years) {
             const year = _years[yr];
-            console.time(`Year ${year}`);
+            // console.time(`Year ${year}`);
             if (!_data[year]) { _data[year] = {}; }
             let month = 0;
             do {
@@ -345,7 +346,7 @@ const _fns_genData = {
 
                     _data[year][month_string]['Regions'][region]['AvgDaysToShip'] = order_ship_diff;
                     _data[year][month_string]['Regions'][region]['Countries'][country]['AvgDaysToShip'] = order_ship_diff;
-                    
+
                     _data[year][month_string]['Regions'][region]['_days_OrderedShippedDiff'].push(order_ship_diff);
                     _data[year][month_string]['Regions'][region]['Countries'][country]['_days_OrderedShippedDiff'].push(order_ship_diff);
                     if (_data[year][month_string]['Regions'][region]['Countries'][country]._indexes.length > 1) {
@@ -369,9 +370,9 @@ const _fns_genData = {
                 }
             } while (month < 12);
 
-            console.timeEnd(`Year ${year}`);
+            // console.timeEnd(`Year ${year}`);
         }
-        console.timeEnd('\nAverage Days To Ship Regions');
+        console.timeEnd('b) Average Days To Ship - Regions');
         return _data;
     }
 };
