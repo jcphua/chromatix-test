@@ -20,11 +20,19 @@ let csv_data = [],
 console.log('***********************************\n**** NODE DATA PROCESSING TEST ****\n***********************************');
 
 console.time('Complete all processing');
+
+// Init folder structure
+['data', 'output'].forEach((file_path) => {
+    const dest_path = path.join(__dirname, `../${ file_path }`);
+    if (fs.existsSync(dest_path)) { return; }
+    fs.mkdirSync(dest_path);
+});
+
 console.log(`Reading data source:\n'${ csv_path }'`);
 console.time('Read CSV');
 fs.createReadStream(csv_path)
     .on('error', () => {
-        console.error(arguments);
+        console.error("File read error");
     })
     .pipe(csvParser())
     .on('data', (row) => {
