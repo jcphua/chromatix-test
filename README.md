@@ -8,6 +8,9 @@
 ### Execution ###
 `npm run start`
 
+### Source code ###
+For simplicity the entire codebase has been written within `/src/index.js`.
+
 ### Notes ###
 * Source CSV file is expected inside `/data` folder, ie. `/data/node-data-processing-medium-data.csv`. Source CSV filename can be amended on line 5 of source code.
 * Output JSON data is generated inside `/output` folder as:
