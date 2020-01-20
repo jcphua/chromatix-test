@@ -33,7 +33,7 @@ fs.createReadStream(csv_path)
         // Init 'caching' index of data row for region properties
         const region = row['Region'];
         if (!_regions[region]) { 
-            _regions[region] = { ...__totals, Countries: {}, ...__indexes }; 
+            _regions[region] = { Total: { Revenue: 0, Cost: 0, Profit: 0 }, Countries: {}, _indexes: [] }; 
         }
         _regions[region]._indexes.push(row_ctr);
 
